@@ -2036,10 +2036,10 @@ confCheck_easy<-function( verbose.mode = TRUE ) {
       "obj.ID"=global.personal.ID
       ))
   }
-  KaplanMeier <- function( fromState, toState, 
-                           passingThrough=c(), passingNotThrough=c(), stoppingAt=c(), 
-                           stoppingNotAt=c(), withPatientID=c() )  {
-    
+  
+  estrai.pazienti.da.percorso <- function( fromState, toState, passingThrough, passingNotThrough,
+                                      stoppingAt, stoppingNotAt, withPatientID )  {
+
     # prendi i risultati dell'ultimo RUN
     res <- get.list.replay.result();
     # prendi gli ID
@@ -2048,9 +2048,8 @@ confCheck_easy<-function( verbose.mode = TRUE ) {
     PatID <- rownames(mtr.thr)
     
     # I pazienti da selezionare devono passare per il from e per il to
-    passingThrough <- c( fromState, toState,  passingThrough)
+    # passingThrough <- c( fromState, toState,  passingThrough)
     
-    # browser()
     # restringi PatID in caso di
     # passingThrough
     if( length(passingThrough) > 0 )  {
@@ -2080,7 +2079,51 @@ confCheck_easy<-function( verbose.mode = TRUE ) {
     if( length(withPatientID) > 0 ) {
       PatID <- withPatientID
     }
-# browser()
+
+    return( list("PatID" = PatID ) )    
+  }
+  
+  old.KaplanMeier <- function( fromState, toState, passingThrough=c(), passingNotThrough=c(), stoppingAt=c(), 
+                               stoppingNotAt=c(), withPatientID=c()   )  { 
+
+    # prendi i risultati dell'ultimo RUN
+    res <- get.list.replay.result();
+    
+    PatID <- patientID
+    
+    # now, get the times
+    tabellona <- c()
+    for( ID in PatID ) {
+      tmpHac <- res$list.computation.matrix$stati.timeline[[ID]]
+      fromMin <- tmpHac[ which(tmpHac[,1]==fromState & tmpHac[,2]=="begin" )[1], 4 ]
+      toMin <- tmpHac[ which(tmpHac[,1]==toState & tmpHac[,2]=="begin" )[1], 4 ]
+      deltaMin <- as.numeric(toMin) - as.numeric(fromMin)
+      tabellona <- rbind(tabellona,c(ID,deltaMin,1))
+    }
+    
+    tabellona <- tabellona[  sort(as.numeric(tabellona[,2]),index.return = T)$ix, ]
+    
+    if(!is.matrix(tabellona)) return( list("table"=NA, "KM"=NA ) )
+    
+    colnames(tabellona) <- c("ID","time","outcome")
+    
+    aaa <- data.frame("ID"=tabellona[,1],"time"=as.numeric(tabellona[,2]),"outcome"=as.numeric(tabellona[,3]) )
+    KM0 <- survfit(Surv(time, outcome)~1,   data=aaa)
+    
+    return( list("table"=aaa, "KM"=KM0, "ID"=tabellona[,1] ) )
+    
+  }
+  KaplanMeier <- function( fromState, toState, 
+                           passingThrough=c(), passingNotThrough=c(), stoppingAt=c(), 
+                           stoppingNotAt=c(), withPatientID=c() )  {
+    
+    # prendi i risultati dell'ultimo RUN
+    res <- get.list.replay.result();
+    
+    # estrai i pazienti che soddisfano i passaggi fra i nodi
+    tmpPatID <- estrai.pazienti.da.percorso( fromState, toState, passingThrough, passingNotThrough,
+                                             stoppingAt, stoppingNotAt, withPatientID )
+    PatID <- tmpPatID$PatID
 
     # now, get the times
     tabellona <- c()
@@ -2170,6 +2213,7 @@ confCheck_easy<-function( verbose.mode = TRUE ) {
     "replay"=replay, # rimpiazza la playLoadedData
     "plot"=plot, # rimpiazza la plotGraph
     "plot.replay.result"=plot.replay.result, # rimpiazza la plotComputationResult
+    # "query.Patient"=query.Patient,
     "get.list.replay.result"=get.list.replay.result, # rimpiazza la getPlayedSequencesStat.00
     "get.XML.replay.result"=get.XML.replay.result, # rimpiazza la getXML
     "plotPatientReplayedTimeline" = plotPatientReplayedTimeline, # rimpiazza la plotPatientComputedTimeline

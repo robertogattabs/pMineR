@@ -54,12 +54,14 @@ cluster_expectationMaximization <- function() {
   processToCluster <-''
   clusters <-''
   logNotes <- ''
+  arrPazienti <-''
   #===========================================================
   # loadDataset
   #===========================================================  
   loadDataset<-function( dataList ) { 
     eventType <<- dataList$arrayAssociativo
     processInstances <<- dataList$wordSequence.raw
+    arrPazienti <<- names(dataList$pat.process)
     obj.logI<<-logInspector()
     obj.logI$loadDataset( dataList )
   }  
@@ -232,7 +234,15 @@ cluster_expectationMaximization <- function() {
   #===========================================================  
   getClusters<-function() {
     
-    return(clusters)
+    toRet <- list()
+    toRet$MMatrix <- clusters$clusters
+    toRet$Clusters <- list()
+    
+    for( clustName in levels(clusters$PtoClust) ) {
+      toRet$Clusters[[ clustName ]] <- arrPazienti[ which(clusters$PtoClust == clustName) ]
+    }
+    # return(clusters)
+    return(toRet)
     
   }
   
@@ -318,6 +328,7 @@ cluster_expectationMaximization <- function() {
     processToCluster <<-''
     clusters <<-''
     logNotes <<-''
+    arrPazienti <<- ''
   } 
   #===========================================================
   costructor();
